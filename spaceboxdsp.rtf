@@ -1,0 +1,90 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2513
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red255\green255\blue255;\red104\green194\blue255;
+}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c100000\c100000\c99985\c0;\cssrgb\c47321\c80781\c100000;
+}
+\margl1440\margr1440\vieww28900\viewh17840\viewkind0
+\deftab720
+\pard\pardeftab720\sl320\partightenfactor0
+
+\f0\fs22\fsmilli11280 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 import("stdfaust.lib");\
+\
+// ui params --------------------------------------------------------------\
+mode         = nentry("mode[style:menu\{'Juno 60 I':1;'Juno 60 II':2,'Dimension D 1':3,'Dimension D 2':4,'Dimension D 3':5,'Dimension D 4':6\}]", 1, 1, 6, 1);\
+mix          = hslider("mix", 0.5, 0, 1, 0.01) : si.smoo;\
+bypass       = checkbox("bypass");\
+lfo_depth_scale = hslider("lfo_depth_scale", 1.0, 0.0, 4.0, 0.01) : si.smoo;\
+lfo_rate_scale  = hslider("lfo_rate_scale",  1.0, 0.0, 4.0, 0.01) : si.smoo;\
+output_gain  = hslider("output_gain[unit:dB]", 0.0, -24.0, 24.0, 0.1) : ba.db2linear : si.smoo;\
+\
+juno60_chorus(mode, x_l, x_r) = y_l, y_r\
+with \{\
+    y_l = x_r : chorus(delayR);\
+    y_r = x_l : chorus(delayL);\
+\
+    // constants --------------------------------------------------------------\
+    max_delay     = 0.00535 : ba.sec2samp;\
+    min_delay     = 0.00166 : ba.sec2samp;\
+    initial_delay = (max_delay + min_delay) / 2.0;\
+\
+    // LFO depth, in samples (scaled)\
+    lfo_depth = (max_delay - initial_delay) * lfo_depth_scale;\
+\
+    // LFO rate, in Hz (scaled)\
+    lfo_rate(m) = ba.selectmulti(0, (0.513, 0.863), m-1) * lfo_rate_scale;\
+\
+    // lfos -------------------------------------------------------------------\
+    lfoL = os.lf_triangle(lfo_rate(mode));\
+    lfoR = lfoL * (-1.0);\
+\
+    // delay time for each channel (in samples) --------------------------------\
+    delayL = initial_delay + lfo_depth * lfoL;\
+    delayR = initial_delay + lfo_depth * lfoR;\
+\
+    chorus(d) = de.fdelay(max_delay * 4.0 + 10, d) : fi.lowpass(2, 10000);\
+\};\
+\
+dimension_d(mode, x_l, x_r) = y_l, y_r\
+with \{\
+    y_l = W_CR * c_r + W_L * d_l + D_L * x_l;\
+    y_r = W_CL * c_l + W_R * d_r + D_R * x_r;\
+    c_l = d_l * -1 : fi.highpass(1, 80);\
+    c_r = d_r * -1 : fi.highpass(1, 80);\
+    d_l = x_l : chorus(delayL);\
+    d_r = x_r : chorus(delayR);\
+\
+    // constants --------------------------------------------------------------\
+    maxDelaySamples = ba.sec2samp(0.1);\
+\
+    // Delay time\
+    delay_time(m) = ba.selectmulti(0, (0.010, 0.0075, 0.0075, 0.0075), m-1) : ba.sec2samp;\
+\
+    // LFO depth, in samples (scaled)\
+    lfo_depth(m) = ba.selectmulti(0, (0.002, 0.0025, 0.0015, 0.0015), m-1) : ba.sec2samp * lfo_depth_scale;\
+\
+    // LFO rates, in Hz (scaled)\
+    lfo_rate(m) = ba.selectmulti(0, (0.25, 0.25, 0.50, 0.50), m-1) * lfo_rate_scale;\
+\
+    // levels -----------------------------------------------------------------\
+    D_L  = 1;\
+    D_R  = 1;\
+    W_L  = ba.if(mode == 4, ba.db2linear(-10), 1);\
+    W_R  = ba.if(mode == 4, ba.db2linear(-10), 1);\
+    W_CL = 1;\
+    W_CR = 1;\
+\
+    // lfos -------------------------------------------------------------------\
+    lfoL = os.lf_triangle(lfo_rate(mode));\
+    lfoR = os.lf_triangle(lfo_rate(mode)) * (-1.0);\
+\
+    chorus(d) = de.fdelay(maxDelaySamples, d);\
+    delayL = delay_time(mode) + lfo_depth(mode) * (1.0 + lfoL);\
+    delayR = delay_time(mode) + lfo_depth(mode) * (1.0 + lfoR);\
+\};\
+\
+chorus_effect = ba.selectmulti(0, (juno60_chorus(1), juno60_chorus(2), dimension_d(1), dimension_d(2), dimension_d(3), dimension_d(4)), mode-1);\
+\
+// stereo processing ------------------------------------------------------\
+process = ba.bypass2(bypass, ef.dryWetMixer(mix, chorus_effect)) : *(output_gain), *(output_gain);}
