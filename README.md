@@ -1,4 +1,4 @@
-# SpaceBox DSP
+# SpaceBox
 
 **A stereo chorus effect built with Faust and JUCE.**
 
@@ -7,3 +7,7 @@
 SpaceBox is a DSP project exploring classic hardware-inspired chorus architectures. The implementation combines two Juno 60-inspired chorus modes with four Dimension D-inspired modes in a single selectable stereo processor.
 The initial prototype was build using Faust DSP and allows the user to pick between Four Dimension D and two Juno 60 Modes. For the plugin implementation, the Faust DSP code was compiled to C++ for integration into the plugin.  In JUCE the UI was built to reflect a guitar pedal style interface with simplified controls for better user experience.
 
+
+## Demo
+
+[![Watch the demo on YouTube](https://img.youtube.com/vi/_YUSC2DAExI/maxresdefault.jpg)](https://youtu.be/_YUSC2DAExI)
